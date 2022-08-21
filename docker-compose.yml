@@ -1,40 +1,48 @@
 version: "3"
 
 services:
+  database_default:
+      # Select one of the following db configurations for the database
+      image: postgres:13.5-alpine
+      container_name: database_default
+      expose:
+        - '5432'
+      networks:
+        - djangocmsnet
+      volumes:
+        - postgres_data_CMS:/var/lib/postgresql/data
+      environment:
+        POSTGRES_DB: "db"
+        POSTGRES_PASSWORD: "password"
+        POSTGRES_HOST_AUTH_METHOD: "trust"
+        SERVICE_MANAGER: "fsm-postgres"
+      
   web:
+    restart: always
     # the application's web service (container) will use an image based on our Dockerfile
     build: .
-    # map the internal port 80 to port 8000 on the host
-    ports:
-      - "8000:80"
+    # the default command to run whenever the container is launched
+    command: python /app/manage.py runserver 0.0.0.0:8000
+    # the URL 'postgres' or 'mysql' will point to the application's db service
+
     # map the host directory to app (which allows us to see and edit files inside the container)
     volumes:
-      - ".:/app:rw"
-      - "./data:/data:rw"
-    # the default command to run whenever the container is launched
-    command: python manage.py runserver 0.0.0.0:80
-    # the URL 'postgres' or 'mysql' will point to the application's db service
-    networks:
-      - djangocmsnet
-
-    env_file: .env-local
-
-  database_default:
-    # Select one of the following db configurations for the database
-    image: postgres:13.5-alpine
+      - .:/app
+      - ./data:/data
+    # map the internal port 80 to port 8000 on the host
     ports:
-      - "5432:5432/tcp"  # allow your local dev env to connect to the db
-    environment:
-      POSTGRES_DB: "db"
-      POSTGRES_PASSWORD: "password"
-      POSTGRES_HOST_AUTH_METHOD: "trust"
-      SERVICE_MANAGER: "fsm-postgres"
-
+      - "8000:8000"
+    depends_on:
+      - database_default
+    links:
+      - database_default:database_default
     networks:
       - djangocmsnet
+    env_file: .env-local 
 
-    volumes:
-      - ".:/app:rw"
+volumes:
+  postgres_data_CMS:
 
 networks:
   djangocmsnet:
+    driver: bridge
